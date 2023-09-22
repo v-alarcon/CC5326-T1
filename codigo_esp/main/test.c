@@ -15,9 +15,9 @@
 
 //Credenciales de WiFi
 
-#define WIFI_SSID "SSID"
-#define WIFI_PASSWORD "PASSOWRD"
-#define SERVER_IP     "192.168.0.1" // IP del servidor
+#define WIFI_SSID "Depto H06 2.4"
+#define WIFI_PASSWORD "ra2147av"
+#define SERVER_IP     "192.168.1.166" // IP del servidor
 #define SERVER_PORT   1234
 
 // Variables de WiFi
