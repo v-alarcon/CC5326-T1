@@ -8,27 +8,16 @@
 
 ---
 
-_Aqui deben de hacer un readme con la estrucutra y flujo basico de su arquitectura_
-
-
-## Comandos de docker
-
-
 ### Iniciar la base de datos
-
+Para iniciar la base de datos en docker
 ```bash
 docker compose up -d
 ```
+Luego para crear las tablas se debe ejecutar codigo_rasp\modelos.py, si se necesita la configuracion inicial en la tabla config descomentar la ultima linea.
 
-### Detener la base de datos
+## Iniciar servidor
+Se debe iniciar el servidor ejecutando el programa codigo_rasp\server.py
 
-```bash
-docker compose down
-```
-
-### Borrar la base de datos
-
-```bash
-docker compose down 
-docker volume rm postgres_data_iot
-```
+## Flashear ESP32
+Primero se debe modificar las credenciales de WiFi que estan en la linea 21 de codigo_esp\main\test.c
+Se flashea la esp32 usando esp-idf con el proyecto dentro de codigo_esp y segun la tabla config se va a ejecutar el protocolo correspondiente
