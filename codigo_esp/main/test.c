@@ -14,6 +14,7 @@
 #include "lwip/sockets.h" // Para sockets
 #include "time.h" // Para obtener el tiempo
 #include "esp_sntp.h"
+#include "math.h"
 
 //Credenciales de WiFi
 
@@ -172,12 +173,14 @@ char* header(char protocol, char transportLayer){
 
 	// generate a random short of 2 bytes to use in the id
     char* id = "D1";
+
     // copy the id into the head first 2 bytes of the header
     memcpy(head, id, 2);
     
 	// 6 bytes para MAC Adress
     uint8_t mac[6];
     esp_wifi_get_mac(ESP_IF_WIFI_STA, mac);
+
     // copy the mac into the head 2 to 8 bytes of the header
     memcpy(head+2, mac, 6);
 
@@ -190,20 +193,13 @@ char* header(char protocol, char transportLayer){
 	// 2 bytes para Length Message
     uint16_t *length = malloc(sizeof(uint16_t));
 
-    if (protocol == '0')
-    {
-        *length = 13;
-    }
+    if (protocol == '0'){*length = 13;}
 
-    if (protocol == '1')
-    {
-        *length = 17;
-    }
+    if (protocol == '1'){*length = 17;}
 
-    if (protocol == '2')
-    {
-        *length = 27;
-    }
+    if (protocol == '2'){*length = 27;}
+
+    if (protocol == '3'){*length = 55;}
 
     // copy the length into the head 10 to 12 bytes of the header
     memcpy(head+10, length, 2);
@@ -234,6 +230,54 @@ char* get_thpc(){
     f = f + (rand() % 100) / 100.0;
     // copy the CO level into the data
     memcpy(data+6, &f, 4);
+    // return the data
+    return data;
+}
+
+char* get_kpi(){
+    //create a list of 28 bytes to store the data
+    char* data = malloc(28);
+
+    // create the data for the ampx using random, its a float between 0.0059 y 0.12
+    float x1 = (rand() % 114 + 59);
+    x1 = x1 / 10000.0; 
+    // copy the ampx into the data
+    memcpy(data + 4, &x1, 4);
+    // create the data for the frecx using random, its a float between 29.0 y 31.0
+    float x2 = (rand() % 20 + 290);
+    x2 = x2 / 10.0;
+    // copy the frecx into the data
+    memcpy(data+8, &x2, 4);
+
+
+    // create the data for the ampy using random, its a float between 0.0041 y 0.11
+    float y1 = (rand() % 69 + 41);
+    y1 = y1 / 10000.0;
+    // copy the ampy into the data
+    memcpy(data+12, &y1, 4);
+    // create the data for the frecy using random, its a float between 59.0 y 61.0
+    float y2 = (rand() % 20 + 590);
+    y2 = y2 / 10.0;
+    // copy the frecy into the data
+    memcpy(data+16, &y2, 4);
+
+
+    // create the data for the ampz using random, its a float between 0.008 y 0.15
+    float z1 = (rand() % 142 + 8);
+    z1 = z1 / 1000.0;
+    // copy the ampz into the data
+    memcpy(data+20, &z1, 4);
+    // create the data for the frecz using random, its a float between 89.0 y 91.0
+    float z2 = (rand() % 20 + 890);
+    z2 = z2 / 10.0;
+    // copy the frecz into the data
+    memcpy(data+24, &z2, 4);
+
+    //create dat for RMS, its the sqrt{(Ampx^2 + Ampy^2 + Ampz^2)}
+    float rms = sqrt(pow(x1,2) + pow(y1,2) + pow(z1,2));
+    // copy the RMS into the data
+    memcpy(data, &rms, 4);
+
     // return the data
     return data;
 }
@@ -354,11 +398,41 @@ void app_main(void){
 
     }
 
-
     //protocol 3 via tcp
     if (ans[0]=='3' && ans[1]=='0') // 
     {
-        ESP_LOGI(TAG, "do protocol 3 via tcp");
+        ESP_LOGI(TAG, "Executing protocol 3 via tcp");
+        //free ans variable
+        free(ans);
+        // create a list of 55 bytes to store the header and the data
+        char* msg = malloc(55);
+        //create header
+        char* head = header('3', '0');
+        // copy the header into the msg
+        memcpy(msg, head, 12);
+        // create the data for the battery level using random
+        uint8_t batteryLevel = getBatteryLevel();
+        // copy the battery level into the msg
+        msg[12] = batteryLevel;
+        // create the data for the timestamp
+        time_t ti;
+        time(&ti);
+        // copy the timestamp into the msg
+        memcpy(msg+13, &t, 4);
+        // create the data for the temperature, humidity, pressure and CO level
+        char* thpc = get_thpc();
+        // copy the thpc into the msg
+        memcpy(msg+17, thpc, 10);
+        // create the data for the kpi
+        char* kpi = get_kpi();
+        // copy the kpi into the msg
+        memcpy(msg+27, kpi, 28);
+        // send the msg to the server
+        ans = socket_tcp(msg, 55);
+        // free the msg variable
+        free(msg);
+        // print the answer
+        ESP_LOGI(TAG, "Answer: %s", ans);
     }
     //protocol 4 via tcp
     if (ans[0]=='4' && ans[1]=='0') // 
