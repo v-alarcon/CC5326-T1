@@ -201,6 +201,9 @@ char* header(char protocol, char transportLayer){
 
     if (protocol == '3'){*length = 55;}
 
+    if (protocol == '4'){*length = 48027;}
+    
+
     // copy the length into the head 10 to 12 bytes of the header
     memcpy(head+10, length, 2);
     
@@ -282,6 +285,78 @@ char* get_kpi(){
     return data;
 }
 
+char* get_acc(){
+    //create a list of 48000 bytes to store the data
+    char* data = malloc(48000);
+    // create a list called acc_x of 2000 floats between -16.0 y 16.0
+    float* acc_x = malloc(sizeof(float)*2000);
+    for (int i = 0; i < 2000; i++){
+        float x = (rand() % 3200 + 1600);
+        x = x / 100.0;
+        x = x - 16.0;
+        acc_x[i] = x;
+    }
+    //copy acc_x into data
+    memcpy(data, acc_x, 8000);
+
+    //create a list called rgyr_x of 2000 floats between -1000.0 y 1000.0
+    float* rgyr_x = malloc(sizeof(float)*2000);
+    for (int i = 0; i < 2000; i++){
+        float x = (rand() % 2000 + 1000);
+        x = x / 10.0;
+        x = x - 1000.0;
+        rgyr_x[i] = x;
+    }
+    //copy rgyr_x into data
+    memcpy(data+8000, rgyr_x, 8000);
+
+    //create a list called acc_y of 2000 floats between -16.0 y 16.0
+    float* acc_y = malloc(sizeof(float)*2000);
+    for (int i = 0; i < 2000; i++){
+        float x = (rand() % 3200 + 1600);
+        x = x / 100.0;
+        x = x - 16.0;
+        acc_y[i] = x;
+    }
+    //copy acc_y into data
+    memcpy(data+16000, acc_y, 8000);
+
+    //create a list called rgyr_y of 2000 floats between -1000.0 y 1000.0
+    float* rgyr_y = malloc(sizeof(float)*2000);
+    for (int i = 0; i < 2000; i++){
+        float x = (rand() % 2000 + 1000);
+        x = x / 10.0;
+        x = x - 1000.0;
+        rgyr_y[i] = x;
+    }
+    //copy rgyr_y into data
+    memcpy(data+24000, rgyr_y, 8000);
+
+    //create a list called acc_z of 2000 floats between -16.0 y 16.0
+    float* acc_z = malloc(sizeof(float)*2000);
+    for (int i = 0; i < 2000; i++){
+        float x = (rand() % 3200 + 1600);
+        x = x / 100.0;
+        x = x - 16.0;
+        acc_z[i] = x;
+    }
+    //copy acc_z into data
+    memcpy(data+32000, acc_z, 8000);
+
+    //create a list called rgyr_z of 2000 floats between -1000.0 y 1000.0
+    float* rgyr_z = malloc(sizeof(float)*2000);
+    for (int i = 0; i < 2000; i++){
+        float x = (rand() % 2000 + 1000);
+        x = x / 10.0;
+        x = x - 1000.0;
+        rgyr_z[i] = x;
+    }
+    //copy rgyr_z into data
+    memcpy(data+40000, rgyr_z, 8000);
+
+    //return data
+    return data;
+}
 void app_main(void){
     // Connect via wifi
     nvs_init();
@@ -435,9 +510,45 @@ void app_main(void){
         ESP_LOGI(TAG, "Answer: %s", ans);
     }
     //protocol 4 via tcp
-    if (ans[0]=='4' && ans[1]=='0') // 
+    if (ans[0]=='4' && ans[1]=='0') 
     {
-        ESP_LOGI(TAG, "do protocol 4 via tcp");
+        ESP_LOGI(TAG, "Executing protocol 4 via tcp");
+        //free ans variable
+        free(ans);
+        // create a list of 48027 bytes to store the header and the data
+        char* msg = malloc(48027);
+        //create header
+        char* head = header('4', '0');
+        // copy the header into the msg
+        memcpy(msg, head, 12);
+        // create the data for the battery level using random
+        uint8_t batteryLevel = getBatteryLevel();
+        // copy the battery level into the msg
+        msg[12] = batteryLevel;
+        // create the data for the timestamp
+        time_t ti;
+        time(&ti);
+        // copy the timestamp into the msg
+        memcpy(msg+13, &t, 4);
+        // create the data for the temperature, humidity, pressure and CO level
+        char* thpc = get_thpc();
+        // copy the thpc into the msg
+        memcpy(msg+17, thpc, 10);
+        // create the data for the acc
+        char* acc = get_acc();
+        // copy the acc into the msg
+        memcpy(msg+27, acc, 48000);
+        // send the msg to the server in 48 parts
+        for ( int i = 0; i < 47; i++)
+        {
+            ans = socket_tcp(msg+(i*1000), 1000);
+        }
+        ans = socket_tcp(msg+(47000), 1027);
+        
+        // free the msg variable
+        free(msg);
+        // print the answer
+        ESP_LOGI(TAG, "Answer: %s", ans);
     }
 
 

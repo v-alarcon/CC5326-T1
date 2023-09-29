@@ -311,4 +311,121 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 
                     if str(row[1])+str(row[2])== "40":
                         # DO PROTOCOL 4 VIA TCP
-                        print("40") 
+                        # prepare to receive data
+                        print("\nPrepare to receive data from Protocol 4")
+                        print('Conectado por', addr)
+                        #receive 48027 bytes in 48 packets of 1000 bytes
+                        data = []
+                        for i in range(47):
+                            s.listen()
+                            conn, addr = s.accept()
+                            data.append(conn.recv(1000))
+                            conn.sendall("OK".encode('utf-8'))
+                        s.listen()
+                        conn, addr = s.accept()
+                        data.append(conn.recv(1027))
+                        conn.sendall("OK".encode('utf-8'))
+                        data = b''.join(data)                    
+                        print("Recibido los bytes")
+                        print(len(data))
+
+                        # save data in the database
+                        print("Guardando en la base de datos")
+
+                        #get the first 2 bytes from the data and transform into a str id_device
+                        id_device = str(data[0:2].decode('utf-8'))
+                        print("ID: " + id_device)
+
+                        #get the next 6 bytes from the data and transform into a str MAC
+                        mac = ""
+                        for i in range(4):
+                            mac += bytes.hex(data[2+i:3+i]) + ":"
+                        mac = mac[:-1]
+                        print("MAC: " + mac)
+
+                        #get the next byte to know the transport layer
+                        transport_layer = chr(data[8])
+                        print("Transport layer: " + transport_layer)
+
+                        #get the next byte to get the protocol
+                        protocol = chr(data[9])
+                        print("Protocol: " + protocol)
+
+                        #get the next 2 bytes to get the packet length
+                        packet_length = int.from_bytes(data[10:12], signed=False, byteorder='little')
+                        print("Packet length: " + str(packet_length))
+                        #get the final byte with the battery level
+                        battery_level = data[12]
+                        print("Battery level: " + str(battery_level))
+
+                        #get the timestamp
+                        timestamp0 = int.from_bytes(data[13:17], signed=False, byteorder='little')
+                        ts = datetime.datetime.fromtimestamp(timestamp0).strftime('%Y-%m-%d %H:%M:%S')
+                        print("Timestamp: " + ts)
+
+                        #get the temperature from the next byte
+                        temperature = data[17]
+                        print("Temperature: " + str(temperature))
+
+                        #get the pressure from the next 4 bytes
+                        pressure = int.from_bytes(data[18:22], signed=False, byteorder='little')
+                        print("Pressure: " + str(pressure))
+
+                        #get the humidity from the next byte its an int
+                        humidity = data[22]
+                        print("Humidity: " + str(humidity))
+
+                        #get the CO2 from the next 4 bytes, its a float
+                        co = struct.unpack('f', data[23:27])
+                        print("CO: " + str(co[0]))
+
+                        #get the next 8000 bytes to get a list of 2000 floats called acc_x
+                        acc_x = []
+                        for i in range(2000):
+                            acc_x.append(struct.unpack('f', data[27+i*4:31+i*4])[0])
+                            if i%250==0: #delete this line
+                                print("ACC_X: " + str(acc_x[i]))
+                        
+                        #get the next 8000 bytes to get a list of 2000 floats called rgyr_x
+                        rgyr_x = []
+                        for i in range(2000):
+                            rgyr_x.append(struct.unpack('f', data[8027+i*4:8031+i*4])[0])
+                            if i%250==0:
+                                print("RGYR_X: " + str(rgyr_x[i]))
+                        
+                        #get the next 8000 bytes to get a list of 2000 floats called acc_y
+                        acc_y = []
+                        for i in range(2000):
+                            acc_y.append(struct.unpack('f', data[16027+i*4:16031+i*4])[0])
+                            if i%250==0:
+                                print("ACC_Y: " + str(acc_y[i]))
+                        
+                        #get the next 8000 bytes to get a list of 2000 floats called rgyr_y
+                        rgyr_y = []
+                        for i in range(2000):
+                            rgyr_y.append(struct.unpack('f', data[24027+i*4:24031+i*4])[0])
+                            if i%250==0:
+                                print("RGYR_Y: " + str(rgyr_y[i]))
+                        
+                        #get the next 8000 bytes to get a list of 2000 floats called acc_z
+                        acc_z = []
+                        for i in range(2000):
+                            acc_z.append(struct.unpack('f', data[32027+i*4:32031+i*4])[0])
+                            if i%250==0:
+                                print("ACC_Z: " + str(acc_z[i]))
+                        
+                        #get the next 8000 bytes to get a list of 2000 floats called rgyr_z
+                        rgyr_z = []
+                        for i in range(2000):
+                            rgyr_z.append(struct.unpack('f', data[40027+i*4:40031+i*4])[0])
+                            if i%250==0:
+                                print("RGYR_Z: " + str(rgyr_z[i]))
+                        
+                        #save the data in the database
+                        Datos.insert(Id_device=id_device, MAC=mac, battlevel=battery_level, timestamp=ts, temp=temperature,
+                                     press=pressure, hum=humidity, co=co[0], accx=acc_x, rgyrx=rgyr_x, accy=acc_y,
+                                     rgyry=rgyr_y, accz=acc_z, rgyrz=rgyr_z).execute()
+                        Logs.insert(ID_device=id_device, Transport_Layer=transport_layer, finaltime=datetime.datetime.now(),
+                                        initialtime=ts).execute()
+                            
+                        
