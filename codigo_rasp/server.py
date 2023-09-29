@@ -3,6 +3,7 @@ import socket
 import time
 from peewee import PostgresqlDatabase
 from modelos import *
+import struct
 
 HOST = '0.0.0.0'  # Escucha en todas las interfaces disponibles
 PORT = 1234       # Puerto en el que se escucha
@@ -141,7 +142,70 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 
                     if str(row[1])+str(row[2])== "20":
                         # DO PROTOCOL 2 VIA TCP
-                        print("20")
+                        # DO PROTOCOL 0 VIA TCP
+                        # prepare to receive data
+                        print("\nPrepare to receive data from Protocol 2")
+                        s.listen()
+                        conn, addr = s.accept()
+                        print('Conectado por', addr)
+                        data = conn.recv(1024)
+                        print("Recibido los bytes")
+
+                        # send OK to the client
+                        conn.sendall("OK".encode('utf-8'))
+
+                        # save data in the database
+                        print("Guardando en la base de datos")
+
+                        #get the first 2 bytes from the data and transform into a str id_device
+                        id_device = str(data[0:2].decode('utf-8'))
+                        print("ID: " + id_device)
+
+                        #get the next 6 bytes from the data and transform into a str MAC
+                        mac = ""
+                        for i in range(4):
+                            mac += bytes.hex(data[2+i:3+i]) + ":"
+                        mac = mac[:-1]
+                        print("MAC: " + mac)
+
+                        #get the next byte to know the transport layer
+                        transport_layer = chr(data[8])
+                        print("Transport layer: " + transport_layer)
+
+                        #get the next byte to get the protocol
+                        protocol = chr(data[9])
+                        print("Protocol: " + protocol)
+
+                        #get the next 2 bytes to get the packet length
+                        packet_length = int.from_bytes(data[10:12], signed=False, byteorder='little')
+                        print("Packet length: " + str(packet_length))
+                        #get the final byte with the battery level
+                        battery_level = data[12]
+                        print("Battery level: " + str(battery_level))
+
+                        #get the timestamp
+                        timestamp0 = int.from_bytes(data[13:17], signed=False, byteorder='little')
+                        ts = datetime.datetime.fromtimestamp(timestamp0).strftime('%Y-%m-%d %H:%M:%S')
+                        print("Timestamp: " + ts)
+
+                        #get the temperature from the next byte
+                        temperature = data[17]
+                        print("Temperature: " + str(temperature))
+
+                        #get the pressure from the next 4 bytes
+                        pressure = int.from_bytes(data[18:22], signed=False, byteorder='little')
+                        print("Pressure: " + str(pressure))
+
+                        #get the humidity from the next byte its an int
+                        humidity = data[22]
+                        print("Humidity: " + str(humidity))
+
+                        #get the CO2 from the next 4 bytes, its a float
+                        co2 = struct.unpack('f', data[23:27])
+                        print("CO2: " + str(co2[0]))
+                        
+
+
                     if str(row[1])+str(row[2])== "30":
                         # DO PROTOCOL 3 VIA TCP
                         print("30")

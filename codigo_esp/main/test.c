@@ -210,6 +210,33 @@ char* header(char protocol, char transportLayer){
     
 	return head;
 }
+// function to get the temperature, humidity, pressure and CO level
+char* get_thpc(){
+    // create a list of 10 bytes to store the data
+    char* data = malloc(10);
+    // create the data for the temperature using random, its a int between 5 and 30
+    time_t t;
+    srand((unsigned) time(&t));
+    int n = rand() % 25 + 5;
+    // copy the temperature into the data
+    memcpy(data, &n, 1);
+    // create the data for the pressure using random, its a int between 1000 and 1200
+    n = rand() % 200 + 1000;
+    // copy the pressure into the data
+    memcpy(data+1, &n, 4);
+    // create the data for the humidity using random, its a int between 30 and 80
+    n = rand() % 50 + 30;
+    // copy the humidity into the data
+    memcpy(data+5, &n, 1);
+    // create the data for the CO level using random, its a float between 30 and 200
+    float f = (rand() % 170 + 30);
+    //add random decimal
+    f = f + (rand() % 100) / 100.0;
+    // copy the CO level into the data
+    memcpy(data+6, &f, 4);
+    // return the data
+    return data;
+}
 
 void app_main(void){
     // Connect via wifi
@@ -297,7 +324,6 @@ void app_main(void){
     if (ans[0]=='2' && ans[1]=='0') // 
     {
         ESP_LOGI(TAG, "Executing protocol 2 via tcp");
-        ESP_LOGI(TAG, "Executing protocol 1 via tcp");
         //free ans variable
         free(ans);
         // create a list of 27 bytes to store the header and the data
@@ -315,8 +341,12 @@ void app_main(void){
         time(&ti);
         // copy the timestamp into the msg
         memcpy(msg+13, &t, 4);
+        // create the data for the temperature, humidity, pressure and CO level
+        char* thpc = get_thpc();
+        // copy the thpc into the msg
+        memcpy(msg+17, thpc, 10);
         // send the msg to the server
-        ans = socket_tcp(msg, 17);
+        ans = socket_tcp(msg, 27);
         // free the msg variable
         free(msg);
         // print the answer
