@@ -249,3 +249,4 @@ codigo_esp/build/partition_table/partition-table.bin
 codigo_esp/.vscode/settings.json
 .gitignore
 credenciales.txt
+codigo_rasp/test.py

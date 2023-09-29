@@ -1,4 +1,4 @@
-from peewee import Model, PostgresqlDatabase, DateTimeField, CharField
+from peewee import *
 
 # Configuración de la base de datos
 db_config = {
@@ -23,15 +23,38 @@ class BaseModel(Model):
 
 # create a new table named Datos with timestamp, Id_device and MAC
 class Datos(BaseModel):
-    timestamp = DateTimeField()
     Id_device = CharField()
     MAC = CharField()
+    battlevel = IntegerField()
+    timestamp = DateTimeField(null = True)
+
+    temp = IntegerField(null = True)
+    press = IntegerField(null = True)
+    hum = IntegerField(null = True)    
+    co = FloatField(null = True)
+
+    ampx = FloatField(null = True)
+    freqx = FloatField(null = True)
+    ampy = FloatField(null = True)
+    freqy = FloatField(null = True)
+    ampz = FloatField(null = True)
+    freqz = FloatField(null = True)
+    rms = FloatField(null = True)
+
+    accx = FloatField(null = True)
+    accy = FloatField(null = True)
+    accz = FloatField(null = True)
+    rgyrx = FloatField(null = True)
+    rgyry = FloatField(null = True)
+    rgyrz = FloatField(null = True)
+    
 
 # create a new table named Logs with ID_device, Transport_Layer and timestamp
 class Logs(BaseModel):
     ID_device = CharField()
     Transport_Layer = CharField()
-    timestamp = DateTimeField()
+    initialtime = DateTimeField(null = True)
+    finaltime = DateTimeField()
 
 # create a new table named Config with ID_protocol and Transport_Layer
 class Config(BaseModel):
@@ -50,5 +73,8 @@ db.create_tables([Datos, Logs, Config, Loss])
 # Id_protocol could be Protocolo 0, Protocolo 1, Protocolo 2, Protocolo 3 or Protocolo 4
 # Transport_Layer could be TCP or UDP
 
+# the first column is the id of the protocol '0' means Protocolo 0, '1' means Protocolo 1, etc.
+# the second one is the transport layer '0' means TCP, '1' means UDP
+
 # insert the initial config row into the table Config
-Config.insert(ID_protocol='Protocolo 0', Transport_Layer='TCP').execute()
+#Config.insert(ID_protocol='0', Transport_Layer='0').execute()

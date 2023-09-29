@@ -12,6 +12,8 @@
 #include "lwip/sys.h"
 #include "nvs_flash.h"
 #include "lwip/sockets.h" // Para sockets
+#include "time.h" // Para obtener el tiempo
+#include "esp_sntp.h"
 
 //Credenciales de WiFi
 
@@ -26,6 +28,7 @@
 static const char* TAG = "WIFI";
 static int s_retry_num = 0;
 static EventGroupHandle_t s_wifi_event_group;
+
 
 
 void event_handler(void* arg, esp_event_base_t event_base,
@@ -115,7 +118,7 @@ void nvs_init() {
 }
 
 
-void socket_tcp(){
+char* socket_tcp(char* msg, int len){
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(SERVER_PORT);
@@ -125,18 +128,18 @@ void socket_tcp(){
     int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock < 0) {
         ESP_LOGE(TAG, "Error al crear el socket");
-        return;
+        return "Error al crear el socket";
     }
 
     // Conectar al servidor
     if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0) {
         ESP_LOGE(TAG, "Error al conectar");
         close(sock);
-        return;
+        return "Error al crear el socket";
     }
 
-    // Enviar mensaje "Hola Mundo"
-    send(sock, "hola mundo", strlen("hola mundo"), 0);
+    // Enviar mensaje al servidor
+    send(sock, msg, len, 0);
 
     // Recibir respuesta
 
@@ -144,19 +147,220 @@ void socket_tcp(){
     int rx_len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
     if (rx_len < 0) {
         ESP_LOGE(TAG, "Error al recibir datos");
-        return;
+        return "Error al crear el socket";
     }
+    rx_buffer[rx_len] = '\0'; // Para que no haya basura al final
     ESP_LOGI(TAG, "Datos recibidos: %s", rx_buffer);
     
     // Cerrar el socket
     close(sock);
+    char* ans = malloc(sizeof(char)*rx_len);
+    strcpy(ans, rx_buffer);
+    return ans;
+}
+// funtion to get the battery level, it returns a random int between 1 and 100
+int getBatteryLevel(){
+    time_t t;
+    srand((unsigned) time(&t));
+    int n = rand() % 100 + 1;
+    return n;
 }
 
+char* header(char protocol, char transportLayer){
+	// 12 bytes for the header
+    char* head = malloc(12);
 
+	// generate a random short of 2 bytes to use in the id
+    char* id = "D1";
+    // copy the id into the head first 2 bytes of the header
+    memcpy(head, id, 2);
+    
+	// 6 bytes para MAC Adress
+    uint8_t mac[6];
+    esp_wifi_get_mac(ESP_IF_WIFI_STA, mac);
+    // copy the mac into the head 2 to 8 bytes of the header
+    memcpy(head+2, mac, 6);
+
+	// 1 byte for the Transport Layer
+    head[8] = transportLayer;
+
+	// 1 byte for the ID Protocol
+    head[9] = protocol;
+
+	// 2 bytes para Length Message
+    uint16_t *length = malloc(sizeof(uint16_t));
+
+    if (protocol == '0')
+    {
+        *length = 13;
+    }
+
+    if (protocol == '1')
+    {
+        *length = 17;
+    }
+
+    if (protocol == '2')
+    {
+        *length = 27;
+    }
+
+    // copy the length into the head 10 to 12 bytes of the header
+    memcpy(head+10, length, 2);
+    
+	return head;
+}
 
 void app_main(void){
+    // Connect via wifi
     nvs_init();
     wifi_init_sta(WIFI_SSID, WIFI_PASSWORD);
     ESP_LOGI(TAG,"Conectado a WiFi!\n");
-    socket_tcp();
+
+    // Send message asking for the protocol and transport layer
+    char* ans = socket_tcp("protocol_and_transport_layer",strlen("protocol_and_transport_layer"));
+    char* ans2 = malloc(sizeof(char)*3);
+    memcpy(ans2, ans, 2);
+    ans2[2] = '\0';
+
+    time_t t;
+    //copy bytes from ans to t
+    memcpy(&t, ans+2, 4);
+    struct timeval tv;
+    tv.tv_sec = t;
+    tv.tv_usec = 0;
+    settimeofday(&tv, NULL);
+
+
+
+    ESP_LOGI(TAG, "Protocol and transport layer: %s", ans2);
+    sntp_sync_status_t sntp_get_sync_status(void);
+
+    // the first column is the id of the protocol '0' means Protocolo 0, '1' means Protocolo 1, etc.
+    // the second one is the transport layer '0' means TCP, '1' means UDP
+
+    //protocol 0 via tcp
+    if (ans[0]=='0' && ans[1]=='0') // 
+    {
+        //free ans variable
+        free(ans);
+        // create a list of 13 bytes to store the header and the data
+        char* msg = malloc(13);
+        ESP_LOGI(TAG, "Executing protocol 0 via tcp");
+        //create header
+        char* head = header('0', '0');
+        // copy the header into the msg
+        memcpy(msg, head, 12);
+        // create the data for the battery level using random
+        uint8_t batteryLevel = getBatteryLevel();
+        // copy the battery level into the msg
+        msg[12] = batteryLevel;
+        // send the msg to the server
+        ans = socket_tcp(msg, 13);
+        // free the msg variable
+        free(msg);
+        // print the answer
+        ESP_LOGI(TAG, "Answer: %s", ans);
+    }
+
+    //protocol 1 via tcp
+    if (ans[0]=='1' && ans[1]=='0') // 
+    {
+        ESP_LOGI(TAG, "Executing protocol 1 via tcp");
+        //free ans variable
+        free(ans);
+        // create a list of 17 bytes to store the header and the data
+        char* msg = malloc(17);
+        //create header
+        char* head = header('1', '0');
+        // copy the header into the msg
+        memcpy(msg, head, 12);
+        // create the data for the battery level using random
+        uint8_t batteryLevel = getBatteryLevel();
+        // copy the battery level into the msg
+        msg[12] = batteryLevel;
+        // create the data for the timestamp
+        time_t ti;
+        time(&ti);
+        // copy the timestamp into the msg
+        memcpy(msg+13, &t, 4);
+        // send the msg to the server
+        ans = socket_tcp(msg, 17);
+        // free the msg variable
+        free(msg);
+        // print the answer
+        ESP_LOGI(TAG, "Answer: %s", ans);
+    }
+
+
+    //protocol 2 via tcp
+    if (ans[0]=='2' && ans[1]=='0') // 
+    {
+        ESP_LOGI(TAG, "Executing protocol 2 via tcp");
+        ESP_LOGI(TAG, "Executing protocol 1 via tcp");
+        //free ans variable
+        free(ans);
+        // create a list of 27 bytes to store the header and the data
+        char* msg = malloc(27);
+        //create header
+        char* head = header('2', '0');
+        // copy the header into the msg
+        memcpy(msg, head, 12);
+        // create the data for the battery level using random
+        uint8_t batteryLevel = getBatteryLevel();
+        // copy the battery level into the msg
+        msg[12] = batteryLevel;
+        // create the data for the timestamp
+        time_t ti;
+        time(&ti);
+        // copy the timestamp into the msg
+        memcpy(msg+13, &t, 4);
+        // send the msg to the server
+        ans = socket_tcp(msg, 17);
+        // free the msg variable
+        free(msg);
+        // print the answer
+        ESP_LOGI(TAG, "Answer: %s", ans);
+
+    }
+
+
+    //protocol 3 via tcp
+    if (ans[0]=='3' && ans[1]=='0') // 
+    {
+        ESP_LOGI(TAG, "do protocol 3 via tcp");
+    }
+    //protocol 4 via tcp
+    if (ans[0]=='4' && ans[1]=='0') // 
+    {
+        ESP_LOGI(TAG, "do protocol 4 via tcp");
+    }
+
+
+    //protocol 0 via udp
+    if (ans[0]=='0' && ans[1]=='1') // 
+    {
+        ESP_LOGI(TAG, "do protocol 0 via udp");
+    }
+    //protocol 1 via udp
+    if (ans[0]=='1' && ans[1]=='1') // 
+    {
+        ESP_LOGI(TAG, "do protocol 1 via udp");
+    }
+    //protocol 2 via udp
+    if (ans[0]=='2' && ans[1]=='1') // 
+    {
+        ESP_LOGI(TAG, "do protocol 2 via udp");
+    }
+    //protocol 3 via udp
+    if (ans[0]=='3' && ans[1]=='1') // 
+    {
+        ESP_LOGI(TAG, "do protocol 3 via udp");
+    }
+    //protocol 4 via udp
+    if (ans[0]=='4' && ans[1]=='1') // 
+    {
+        ESP_LOGI(TAG, "do protocol 4 via udp");
+    }
+
 }
