@@ -201,8 +201,14 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                         print("Humidity: " + str(humidity))
 
                         #get the CO2 from the next 4 bytes, its a float
-                        co2 = struct.unpack('f', data[23:27])
-                        print("CO2: " + str(co2[0]))
+                        co = struct.unpack('f', data[23:27])
+                        print("CO: " + str(co[0]))
+
+                        #save the data in the database
+                        Datos.insert(Id_device=id_device, MAC=mac, battlevel=battery_level, timestamp=ts, temp=temperature,
+                                     press=pressure, hum=humidity, co=co[0]).execute()
+                        Logs.insert(ID_device=id_device, Transport_Layer=transport_layer, finaltime=datetime.datetime.now(),
+                                        initialtime=ts).execute()
                         
 
 
