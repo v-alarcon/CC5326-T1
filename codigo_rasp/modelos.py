@@ -1,5 +1,5 @@
 from peewee import *
-
+from playhouse.postgres_ext import ArrayField
 # Configuración de la base de datos
 db_config = {
     'host': 'localhost', 
@@ -41,12 +41,13 @@ class Datos(BaseModel):
     freqz = FloatField(null = True)
     rms = FloatField(null = True)
 
-    accx = FloatField(null = True)
-    accy = FloatField(null = True)
-    accz = FloatField(null = True)
-    rgyrx = FloatField(null = True)
-    rgyry = FloatField(null = True)
-    rgyrz = FloatField(null = True)
+
+    accx = ArrayField(FloatField, null = True)
+    accy = ArrayField(FloatField, null = True)
+    accz = ArrayField(FloatField, null = True)
+    rgyrx = ArrayField(FloatField, null = True)
+    rgyry = ArrayField(FloatField, null = True)
+    rgyrz = ArrayField(FloatField, null = True)
     
 
 # create a new table named Logs with ID_device, Transport_Layer and timestamp
